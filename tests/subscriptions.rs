@@ -1,6 +1,6 @@
-use std::net::TcpListener;
-use sqlx::{PgConnection, Connection};
 use rust_zero2prod::configuration::get_configuration;
+use sqlx::{Connection, PgConnection};
+use std::net::TcpListener;
 
 pub fn spawn_app() -> String {
     let tcp_listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port.");
