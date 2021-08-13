@@ -14,7 +14,21 @@ name = "rust-zero2prod"
 
 [dependencies]
 actix-web = "4.0.0-beta.8"
+config = "0.11.0"
 reqwest = "0.11"
+serde = { version = "1", features = ["derive"]}
+
+[dependencies.sqlx]
+version = "0.5.5"
+default-features = false
+features = [
+    "runtime-actix-rustls",
+    "macros",
+    "postgres",
+    "uuid",
+    "chrono",
+    "migrate"
+]
 
 [dev-dependencies]
 actix-rt = "2.2.0"

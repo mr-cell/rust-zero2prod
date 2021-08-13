@@ -3,7 +3,7 @@ use std::net::TcpListener;
 fn spawn_app() -> String {
     let tcp_listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port.");
     let port = tcp_listener.local_addr().unwrap().port();
-    let server = rust_zero2prod::run(tcp_listener).expect("Failed to bind the address.");
+    let server = rust_zero2prod::startup::run(tcp_listener).expect("Failed to bind the address.");
     let _ = tokio::spawn(server);
 
     format!("http://127.0.0.1:{}", port)
