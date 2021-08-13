@@ -96,10 +96,10 @@ jobs:
           toolchain: stable
           override: true
       - name: Migrate database
-          run: |
-            sudo apt-get install libpq-dev -y
-            cargo install --version=0.5.5 --locked sqlx-cli --no-default-features --feature postgres
-            SKIP_DOCKER=true ./scripts/init_db.sh
+        run: |
+          sudo apt-get install libpq-dev -y
+          cargo install --version=0.5.5 --locked sqlx-cli --no-default-features --feature postgres
+          SKIP_DOCKER=true ./scripts/init_db.sh
       - uses: actions-rs/tarpaulin@v0.1
         with:
           args: '--ignore-tests --avoid-cfg-tarpaulin'
