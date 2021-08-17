@@ -1,29 +1,15 @@
-use rust_zero2prod::configuration::get_configuration;
-use sqlx::{Connection, PgConnection};
-use std::net::TcpListener;
+mod common;
 
-pub fn spawn_app() -> String {
-    let tcp_listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port.");
-    let port = tcp_listener.local_addr().unwrap().port();
-    let server = rust_zero2prod::startup::run(tcp_listener).expect("Failed to bind the address.");
-    let _ = tokio::spawn(server);
-
-    format!("http://127.0.0.1:{}", port)
-}
+use common::spawn_app;
 
 #[actix_rt::test]
 async fn subscriptions_returns_200_for_valid_form_data() {
-    let address = spawn_app();
-    let configuration = get_configuration().expect("Failed to read configuration");
-    let connection_string = configuration.database.connection_string();
-    let mut connection = PgConnection::connect(&connection_string)
-        .await
-        .expect("Failed to connect to Posgres DB.");
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
 
     let response = client
-        .post(&format!("{}/subscriptions", &address))
+        .post(&format!("{}/subscriptions", &app.address))
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(body)
         .send()
@@ -33,7 +19,7 @@ async fn subscriptions_returns_200_for_valid_form_data() {
     assert_eq!(200, response.status().as_u16());
 
     let saved = sqlx::query!("SELECT email, name FROM subscriptions",)
-        .fetch_one(&mut connection)
+        .fetch_one(&app.db_pool)
         .await
         .expect("Failed to fetch saved subscriptions");
 
@@ -43,7 +29,8 @@ async fn subscriptions_returns_200_for_valid_form_data() {
 
 #[actix_rt::test]
 async fn subscriptions_returns_400_for_missing_form_data() {
-    let address = spawn_app();
+    let test_app = spawn_app().await;
+    let address = test_app.address;
     let client = reqwest::Client::new();
     let test_cases = vec![
         ("name=le%20guin", "missing the e-mail"),
