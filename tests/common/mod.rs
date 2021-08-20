@@ -1,7 +1,27 @@
+use once_cell::sync::Lazy;
 use rust_zero2prod::configuration::{get_configuration, DatabaseSettings};
+use rust_zero2prod::telemetry::{get_tracing_subscriber, init_tracing_subscriber};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
 use uuid::Uuid;
+
+static TRACING: Lazy<()> = Lazy::new(|| {
+    let tracing_subscriber_name = "test".into();
+    let default_filter_level = "debug".into();
+
+    if std::env::var("TEST_LOG").is_ok() {
+        let tracing_subscriber = get_tracing_subscriber(
+            tracing_subscriber_name,
+            default_filter_level,
+            std::io::stdout,
+        );
+        init_tracing_subscriber(tracing_subscriber);
+    } else {
+        let tracing_subscriber =
+            get_tracing_subscriber(tracing_subscriber_name, default_filter_level, std::io::sink);
+        init_tracing_subscriber(tracing_subscriber);
+    };
+});
 
 pub struct TestApp {
     pub address: String,
@@ -9,6 +29,7 @@ pub struct TestApp {
 }
 
 pub async fn spawn_app() -> TestApp {
+    Lazy::force(&TRACING);
     let localhost = "127.0.0.1";
     let tcp_listener =
         TcpListener::bind(format!("{}:0", localhost)).expect("Failed to bind random port.");
