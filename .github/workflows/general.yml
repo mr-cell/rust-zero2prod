@@ -30,6 +30,8 @@ jobs:
           sudo apt-get install libpq-dev -y
           cargo install --version=0.5.5 --locked sqlx-cli --no-default-features --features postgres
           SKIP_DOCKER=true ./scripts/init_db.sh
+      - name: Check SQLX metadata file
+        run: cargo sqlx prepare --check -- --bin rust-zero2prod
       - uses: actions-rs/cargo@v1
         with:
           command: test
@@ -68,12 +70,9 @@ jobs:
           toolchain: stable
           override: true
           components: clippy
-      - name: Migrate database
-        run: |
-          sudo apt-get install libpq-dev -y
-          cargo install --version=0.5.5 --locked sqlx-cli --no-default-features --features postgres
-          SKIP_DOCKER=true ./scripts/init_db.sh
       - uses: actions-rs/clippy-check@v1
+        env:
+          SQLX_OFFLINE: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: -- -D warnings
@@ -96,12 +95,9 @@ jobs:
         with:
           toolchain: stable
           override: true
-      - name: Migrate database
-        run: |
-          sudo apt-get install libpq-dev -y
-          cargo install --version=0.5.5 --locked sqlx-cli --no-default-features --features postgres
-          SKIP_DOCKER=true ./scripts/init_db.sh
       - uses: actions-rs/tarpaulin@v0.1
+        env:
+          SQLX_OFFLINE: true
         with:
           args: '--ignore-tests --avoid-cfg-tarpaulin'
 

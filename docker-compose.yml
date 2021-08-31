@@ -1,0 +1,20 @@
+version: '3.7'
+
+services:
+  postgres:
+    restart: always
+    image: postgres:12
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: newsletter
+  subscriptions:
+    build:
+      context: .
+    image: rust-zero2prod
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
