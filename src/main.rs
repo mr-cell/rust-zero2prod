@@ -2,8 +2,8 @@ use rust_zero2prod::configuration::get_configuration;
 use rust_zero2prod::startup::run;
 use rust_zero2prod::telemetry::{get_tracing_subscriber, init_tracing_subscriber};
 use sqlx::postgres::PgPoolOptions;
-use std::net::TcpListener;
 use sqlx::{Pool, Postgres};
+use std::net::TcpListener;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -28,10 +28,7 @@ async fn main() -> std::io::Result<()> {
     run(tcp_listener, db_connection_pool)?.await
 }
 
-#[tracing::instrument(
-    name = "Migrating database",
-    skip(db_connection_pool)
-)]
+#[tracing::instrument(name = "Migrating database", skip(db_connection_pool))]
 async fn migrate_db(db_connection_pool: &Pool<Postgres>) {
     sqlx::migrate!("./migrations")
         .run(db_connection_pool)
