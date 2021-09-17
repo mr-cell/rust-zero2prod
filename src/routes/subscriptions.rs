@@ -23,7 +23,6 @@ pub async fn subscribe(
     form: web::Form<SubscribeFormData>,
     db_pool: web::Data<PgPool>,
 ) -> impl Responder {
-
     let name = match SubscriberName::parse(form.0.name) {
         Ok(name) => name,
         Err(message) => {
