@@ -1,10 +1,5 @@
 use unicode_segmentation::UnicodeSegmentation;
 
-pub struct NewSubscriber {
-    pub email: SubscriberEmail,
-    pub name: SubscriberName,
-}
-
 #[derive(Debug)]
 pub struct SubscriberName(String);
 
@@ -29,30 +24,9 @@ impl AsRef<str> for SubscriberName {
     }
 }
 
-#[derive(Debug)]
-pub struct SubscriberEmail(String);
-
-impl SubscriberEmail {
-    pub fn parse(s: String) -> Result<SubscriberEmail, String> {
-        let is_empty_or_whitespace = s.trim().is_empty();
-
-        if is_empty_or_whitespace {
-            Err(format!("{} is not a valid subscriber email.", s))
-        } else {
-            Ok(Self(s))
-        }
-    }
-}
-
-impl AsRef<str> for SubscriberEmail {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::domain::{SubscriberEmail, SubscriberName};
+    use crate::domain::SubscriberName;
     use claim::{assert_err, assert_ok};
 
     #[test]
@@ -91,23 +65,5 @@ mod tests {
     fn a_valid_name_is_parsed_successfully() {
         let name = "Ursula Le Guin".to_string();
         assert_ok!(SubscriberName::parse(name));
-    }
-
-    #[test]
-    fn whitespace_only_email_is_invalid() {
-        let email = " ".to_string();
-        assert_err!(SubscriberEmail::parse(email));
-    }
-
-    #[test]
-    fn empty_email_is_invalid() {
-        let email = "".to_string();
-        assert_err!(SubscriberEmail::parse(email));
-    }
-
-    #[test]
-    fn a_valid_email_is_parsed_successfully() {
-        let email = "ursula.leguin@mail.com".to_string();
-        assert_ok!(SubscriberEmail::parse(email));
     }
 }

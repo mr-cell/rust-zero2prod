@@ -2,12 +2,23 @@ use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
 use actix_web::{web, HttpResponse, Responder};
 use chrono::Utc;
 use sqlx::PgPool;
+use std::convert::{TryFrom, TryInto};
 use uuid::Uuid;
 
 #[derive(serde::Deserialize)]
 pub struct SubscribeFormData {
     email: String,
     name: String,
+}
+
+impl TryFrom<SubscribeFormData> for NewSubscriber {
+    type Error = String;
+
+    fn try_from(value: SubscribeFormData) -> Result<Self, Self::Error> {
+        let name = SubscriberName::parse(value.name)?;
+        let email = SubscriberEmail::parse(value.email)?;
+        Ok(NewSubscriber { name, email })
+    }
 }
 
 #[allow(clippy::async_yields_async)]
@@ -23,23 +34,13 @@ pub async fn subscribe(
     form: web::Form<SubscribeFormData>,
     db_pool: web::Data<PgPool>,
 ) -> impl Responder {
-    let name = match SubscriberName::parse(form.0.name) {
-        Ok(name) => name,
-        Err(message) => {
-            tracing::error!("Subscribing new user failed: {}.", message);
-            return HttpResponse::BadRequest();
-        }
-    };
-
-    let email = match SubscriberEmail::parse(form.0.email) {
-        Ok(email) => email,
+    let new_subscriber = match form.0.try_into() {
+        Ok(new_subscriber) => new_subscriber,
         Err(message) => {
             tracing::error!("Subscribing new user failed: {}", message);
             return HttpResponse::BadRequest();
         }
     };
-
-    let new_subscriber = NewSubscriber { email, name };
 
     match insert_subscriber(&db_pool, &new_subscriber).await {
         Ok(_) => HttpResponse::Ok(),
