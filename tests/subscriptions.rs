@@ -2,6 +2,12 @@ mod common;
 
 use common::spawn_app;
 
+#[derive(sqlx::FromRow)]
+struct SubscriptionDetails {
+    email: String,
+    name: String,
+}
+
 #[actix_rt::test]
 async fn post_subscriptions_returns_200_for_valid_form_data() {
     let app = spawn_app().await;
@@ -18,7 +24,7 @@ async fn post_subscriptions_returns_200_for_valid_form_data() {
 
     assert_eq!(200, response.status().as_u16());
 
-    let saved = sqlx::query!("SELECT email, name FROM subscriptions",)
+    let saved = sqlx::query_as::<_, SubscriptionDetails>("SELECT email, name FROM subscriptions")
         .fetch_one(&app.db_pool)
         .await
         .expect("Failed to fetch saved subscriptions");

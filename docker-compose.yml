@@ -3,7 +3,7 @@ version: '3.7'
 services:
   postgres:
     restart: always
-    image: postgres:12
+    image: postgres:13-alpine
     container_name: postgres
     environment:
       POSTGRES_USER: postgres

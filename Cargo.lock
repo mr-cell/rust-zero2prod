@@ -1627,6 +1627,7 @@ dependencies = [
  "serde 1.0.127",
  "serde-aux",
  "sqlx",
+ "testcontainers",
  "tokio",
  "tracing",
  "tracing-actix-web",
@@ -2127,6 +2128,21 @@ dependencies = [
  "redox_syscall",
  "remove_dir_all",
  "winapi",
+]
+
+[[package]]
+name = "testcontainers"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d5e3ed6e3598dbf32cba8cb356b881c085e0adea57597f387723430dd94b4084"
+dependencies = [
+ "hex",
+ "hmac",
+ "log",
+ "rand 0.8.4",
+ "serde 1.0.127",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]

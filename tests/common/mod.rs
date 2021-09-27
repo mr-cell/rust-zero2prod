@@ -1,9 +1,15 @@
 use once_cell::sync::Lazy;
 use rust_zero2prod::configuration::{get_configuration, DatabaseSettings};
 use rust_zero2prod::telemetry::{get_tracing_subscriber, init_tracing_subscriber};
-use sqlx::{Connection, Executor, PgConnection, PgPool};
+use sqlx::PgPool;
+use std::collections::HashMap;
 use std::net::TcpListener;
-use uuid::Uuid;
+use testcontainers::clients::Cli;
+use testcontainers::core::Port;
+use testcontainers::images::postgres::Postgres;
+use testcontainers::{clients, images, Container, Docker, RunArgs};
+
+static DOCKER: Lazy<Cli> = Lazy::new(|| clients::Cli::default());
 
 static TRACING: Lazy<()> = Lazy::new(|| {
     let tracing_subscriber_name = "test".into();
@@ -23,45 +29,77 @@ static TRACING: Lazy<()> = Lazy::new(|| {
     };
 });
 
-pub struct TestApp {
+pub struct TestApp<'d> {
     pub address: String,
     pub db_pool: PgPool,
+    _db_container: Container<'d, Cli, Postgres>,
 }
 
-pub async fn spawn_app() -> TestApp {
+pub async fn spawn_app<'d>() -> Box<TestApp<'d>> {
     Lazy::force(&TRACING);
+
+    let configuration = get_configuration().expect("Failed to read configuration");
+    let (db_container, db_port) = configure_db_container(&configuration.database);
+
     let localhost = "127.0.0.1";
     let tcp_listener =
         TcpListener::bind(format!("{}:0", localhost)).expect("Failed to bind random port.");
     let port = tcp_listener.local_addr().unwrap().port();
     let address = format!("http://{}:{}", localhost, port);
 
-    let configuration = get_configuration().expect("Failed to read configuration");
-    let connection_pool = configure_database(&configuration.database).await;
+    let connection_pool = configure_database(&configuration.database, db_port).await;
     let server = rust_zero2prod::startup::run(tcp_listener, connection_pool.clone())
         .expect("Failed to bind the address.");
     let _ = tokio::spawn(server);
 
-    TestApp {
+    Box::new(TestApp {
         address,
         db_pool: connection_pool,
-    }
+        _db_container: db_container,
+    })
 }
 
-async fn configure_database(config: &DatabaseSettings) -> PgPool {
-    let random_database_name = Uuid::new_v4().to_string();
-    let mut connection = PgConnection::connect_with(&config.without_db())
+fn configure_db_container<'d>(
+    db_configuration: &DatabaseSettings,
+) -> (Container<'d, Cli, Postgres>, u16) {
+    let docker = Lazy::force(&DOCKER);
+    let env_vars: HashMap<String, String> = [
+        ("POSTGRES_USER", db_configuration.username.as_str()),
+        ("POSTGRES_PASSWORD", db_configuration.password.as_str()),
+        ("POSTGRES_DB", db_configuration.database_name.as_str()),
+    ]
+    .iter()
+    .cloned()
+    .map(|tuple| (tuple.0.to_string(), tuple.1.to_string()))
+    .collect();
+    let postgres_image = images::postgres::Postgres::default()
+        .with_version(13)
+        .with_env_vars(env_vars);
+    let db_port = free_local_port().expect("Could not obtain free network port");
+
+    let db_container = docker.run_with_args(
+        postgres_image,
+        RunArgs::default().with_mapped_port(Port {
+            local: db_port,
+            internal: 5432,
+        }),
+    );
+
+    (db_container, db_port)
+}
+
+fn free_local_port() -> Option<u16> {
+    let socket = std::net::SocketAddrV4::new(std::net::Ipv4Addr::LOCALHOST, 0);
+    std::net::TcpListener::bind(socket)
+        .and_then(|listener| listener.local_addr())
+        .map(|addr| addr.port())
+        .ok()
+}
+
+async fn configure_database(config: &DatabaseSettings, db_port: u16) -> PgPool {
+    let connection_pool = PgPool::connect_with(config.with_db().port(db_port))
         .await
         .expect("Failed to connect to Postgres DB.");
-    connection
-        .execute(&*format!(r#"CREATE DATABASE "{}";"#, random_database_name))
-        .await
-        .expect("Failed to create new database.");
-
-    let connection_pool =
-        PgPool::connect_with(config.with_db().database(random_database_name.as_str()))
-            .await
-            .expect("Failed to connect to Postgres DB.");
     sqlx::migrate!("./migrations")
         .run(&connection_pool)
         .await
