@@ -5,6 +5,7 @@ use sqlx::postgres::PgPoolOptions;
 use sqlx::{Pool, Postgres};
 use std::net::TcpListener;
 
+#[cfg(not(tarpaulin_include))]
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let configuration = get_configuration().expect("Failed to read configuration");
