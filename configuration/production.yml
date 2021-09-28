@@ -3,3 +3,5 @@ application:
 database:
   host: "postgres"
   require_ssl: false
+tracing:
+  host: "jaeger"

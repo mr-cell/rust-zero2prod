@@ -6,6 +6,7 @@ use std::convert::{TryFrom, TryInto};
 pub struct Settings {
     pub application: ApplicationSettings,
     pub database: DatabaseSettings,
+    pub tracing: TracingSettings,
 }
 
 #[derive(serde::Deserialize)]
@@ -24,6 +25,15 @@ pub struct DatabaseSettings {
     pub port: u16,
     pub database_name: String,
     pub require_ssl: bool,
+}
+
+#[derive(serde::Deserialize)]
+pub struct TracingSettings {
+    pub service_name: String,
+    pub log_level: String,
+    pub host: String,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    pub port: u16,
 }
 
 impl DatabaseSettings {

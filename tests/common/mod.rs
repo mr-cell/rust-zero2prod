@@ -1,5 +1,5 @@
 use once_cell::sync::Lazy;
-use rust_zero2prod::configuration::{get_configuration, DatabaseSettings};
+use rust_zero2prod::configuration::{get_configuration, DatabaseSettings, TracingSettings};
 use rust_zero2prod::telemetry::{get_tracing_subscriber, init_tracing_subscriber};
 use sqlx::PgPool;
 use std::collections::HashMap;
@@ -12,19 +12,18 @@ use testcontainers::{clients, images, Container, Docker, RunArgs};
 static DOCKER: Lazy<Cli> = Lazy::new(|| clients::Cli::default());
 
 static TRACING: Lazy<()> = Lazy::new(|| {
-    let tracing_subscriber_name = "test".into();
-    let default_filter_level = "debug".into();
+    let tracing_settings = TracingSettings {
+        service_name: "test".into(),
+        log_level: "debug".into(),
+        host: "localhost".into(),
+        port: 6831,
+    };
 
     if std::env::var("TEST_LOG").is_ok() {
-        let tracing_subscriber = get_tracing_subscriber(
-            tracing_subscriber_name,
-            default_filter_level,
-            std::io::stdout,
-        );
+        let tracing_subscriber = get_tracing_subscriber(&tracing_settings, std::io::stdout);
         init_tracing_subscriber(tracing_subscriber);
     } else {
-        let tracing_subscriber =
-            get_tracing_subscriber(tracing_subscriber_name, default_filter_level, std::io::sink);
+        let tracing_subscriber = get_tracing_subscriber(&tracing_settings, std::io::sink);
         init_tracing_subscriber(tracing_subscriber);
     };
 });

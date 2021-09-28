@@ -10,8 +10,7 @@ use std::net::TcpListener;
 async fn main() -> std::io::Result<()> {
     let configuration = get_configuration().expect("Failed to read configuration");
 
-    let tracing_subscriber =
-        get_tracing_subscriber("rust-zero2prod".into(), "info".into(), std::io::stdout);
+    let tracing_subscriber = get_tracing_subscriber(&configuration.tracing, std::io::stdout);
     init_tracing_subscriber(tracing_subscriber);
 
     let db_connection_pool = PgPoolOptions::new()

@@ -7,3 +7,8 @@ database:
   password: "password"
   database_name: "newsletter"
   require_ssl: false
+tracing:
+  service_name: "rust-zero2prod"
+  log_level: "info"
+  host: "localhost"
+  port: 6831
