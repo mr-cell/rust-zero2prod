@@ -1,9 +1,11 @@
 use once_cell::sync::Lazy;
 use rust_zero2prod::configuration::{get_configuration, DatabaseSettings, TracingSettings};
+use rust_zero2prod::email_client::EmailClient;
 use rust_zero2prod::telemetry::{get_tracing_subscriber, init_tracing_subscriber};
 use sqlx::PgPool;
 use std::collections::HashMap;
 use std::net::TcpListener;
+use std::time::Duration;
 use testcontainers::clients::Cli;
 use testcontainers::core::Port;
 use testcontainers::images::postgres::Postgres;
@@ -47,7 +49,19 @@ pub async fn spawn_app<'d>() -> Box<TestApp<'d>> {
     let address = format!("http://{}:{}", localhost, port);
 
     let connection_pool = configure_database(&configuration.database, db_port).await;
-    let server = rust_zero2prod::startup::run(tcp_listener, connection_pool.clone())
+
+    let sender_email = configuration
+        .email_client
+        .sender()
+        .expect("Invalid sender email address");
+    let email_client = EmailClient::new(
+        configuration.email_client.base_url,
+        sender_email,
+        configuration.email_client.authorization_token,
+        Duration::from_millis(configuration.email_client.timeout_millis),
+    );
+
+    let server = rust_zero2prod::startup::run(tcp_listener, connection_pool.clone(), email_client)
         .expect("Failed to bind the address.");
     let _ = tokio::spawn(server);
 

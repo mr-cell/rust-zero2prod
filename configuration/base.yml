@@ -12,3 +12,8 @@ tracing:
   log_level: "info"
   host: "localhost"
   port: 6831
+email_client:
+  base_url: "https://api.sendgrid.com"
+  sender_email: "marcel.schally@gmail.com"
+  authorization_token: "my-secret-token"
+  timeout_millis: 10000
