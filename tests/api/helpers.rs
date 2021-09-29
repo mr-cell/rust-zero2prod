@@ -81,10 +81,10 @@ fn configure_db_container<'d>(
         ("POSTGRES_PASSWORD", db_configuration.password.as_str()),
         ("POSTGRES_DB", db_configuration.database_name.as_str()),
     ]
-    .iter()
-    .cloned()
-    .map(|tuple| (tuple.0.to_string(), tuple.1.to_string()))
-    .collect();
+        .iter()
+        .cloned()
+        .map(|tuple| (tuple.0.to_string(), tuple.1.to_string()))
+        .collect();
     let postgres_image = images::postgres::Postgres::default()
         .with_version(13)
         .with_env_vars(env_vars);

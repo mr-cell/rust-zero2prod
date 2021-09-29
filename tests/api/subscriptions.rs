@@ -1,6 +1,4 @@
-mod common;
-
-use common::spawn_app;
+use crate::helpers::spawn_app;
 
 #[derive(sqlx::FromRow)]
 struct SubscriptionDetails {
