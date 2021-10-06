@@ -1,11 +1,8 @@
 use once_cell::sync::Lazy;
-use rust_zero2prod::configuration::{get_configuration, DatabaseSettings, TracingSettings};
-use rust_zero2prod::email_client::EmailClient;
+use rust_zero2prod::configuration::{get_configuration, TracingSettings};
 use rust_zero2prod::telemetry::{get_tracing_subscriber, init_tracing_subscriber};
 use sqlx::PgPool;
 use std::collections::HashMap;
-use std::net::TcpListener;
-use std::time::Duration;
 use testcontainers::clients::Cli;
 use testcontainers::core::Port;
 use testcontainers::images::postgres::Postgres;
@@ -30,6 +27,12 @@ static TRACING: Lazy<()> = Lazy::new(|| {
     };
 });
 
+struct DbContainerSettings {
+    username: String,
+    password: String,
+    db_name: String,
+}
+
 pub struct TestApp<'d> {
     pub address: String,
     pub db_pool: PgPool,
@@ -39,52 +42,48 @@ pub struct TestApp<'d> {
 pub async fn spawn_app<'d>() -> Box<TestApp<'d>> {
     Lazy::force(&TRACING);
 
-    let configuration = get_configuration().expect("Failed to read configuration");
-    let (db_container, db_port) = configure_db_container(&configuration.database);
+    let db_container_settings = DbContainerSettings {
+        username: "postgres".into(),
+        password: "password".into(),
+        db_name: "newsletter".into(),
+    };
+    let (db_container, db_port) = configure_db_container(&db_container_settings);
 
-    let localhost = "127.0.0.1";
-    let tcp_listener =
-        TcpListener::bind(format!("{}:0", localhost)).expect("Failed to bind random port.");
-    let port = tcp_listener.local_addr().unwrap().port();
-    let address = format!("http://{}:{}", localhost, port);
+    let configuration = {
+        let mut c = get_configuration().expect("Failed to read configuration");
+        c.database.port = db_port;
+        c.application.port = 0;
+        c
+    };
 
-    let connection_pool = configure_database(&configuration.database, db_port).await;
+    let app = rust_zero2prod::startup::Application::build(&configuration)
+        .await
+        .expect("Could not start the application.");
+    let connection_pool =
+        rust_zero2prod::startup::create_db_connection_pool(&configuration.database).await;
 
-    let sender_email = configuration
-        .email_client
-        .sender()
-        .expect("Invalid sender email address");
-    let email_client = EmailClient::new(
-        configuration.email_client.base_url,
-        sender_email,
-        configuration.email_client.authorization_token,
-        Duration::from_millis(configuration.email_client.timeout_millis),
-    );
-
-    let server = rust_zero2prod::startup::run(tcp_listener, connection_pool.clone(), email_client)
-        .expect("Failed to bind the address.");
-    let _ = tokio::spawn(server);
+    let _ = tokio::spawn(app.server);
 
     Box::new(TestApp {
-        address,
+        address: format!("http://127.0.0.1:{}", app.port),
         db_pool: connection_pool,
         _db_container: db_container,
     })
 }
 
 fn configure_db_container<'d>(
-    db_configuration: &DatabaseSettings,
+    db_configuration: &DbContainerSettings,
 ) -> (Container<'d, Cli, Postgres>, u16) {
     let docker = Lazy::force(&DOCKER);
     let env_vars: HashMap<String, String> = [
         ("POSTGRES_USER", db_configuration.username.as_str()),
         ("POSTGRES_PASSWORD", db_configuration.password.as_str()),
-        ("POSTGRES_DB", db_configuration.database_name.as_str()),
+        ("POSTGRES_DB", db_configuration.db_name.as_str()),
     ]
-        .iter()
-        .cloned()
-        .map(|tuple| (tuple.0.to_string(), tuple.1.to_string()))
-        .collect();
+    .iter()
+    .cloned()
+    .map(|tuple| (tuple.0.to_string(), tuple.1.to_string()))
+    .collect();
     let postgres_image = images::postgres::Postgres::default()
         .with_version(13)
         .with_env_vars(env_vars);
@@ -107,16 +106,4 @@ fn free_local_port() -> Option<u16> {
         .and_then(|listener| listener.local_addr())
         .map(|addr| addr.port())
         .ok()
-}
-
-async fn configure_database(config: &DatabaseSettings, db_port: u16) -> PgPool {
-    let connection_pool = PgPool::connect_with(config.with_db().port(db_port))
-        .await
-        .expect("Failed to connect to Postgres DB.");
-    sqlx::migrate!("./migrations")
-        .run(&connection_pool)
-        .await
-        .expect("Failed to migrate database.");
-
-    connection_pool
 }

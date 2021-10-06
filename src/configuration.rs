@@ -1,9 +1,8 @@
 use crate::domain::SubscriberEmail;
-use serde_aux::field_attributes::deserialize_number_from_string;
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use std::convert::{TryFrom, TryInto};
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Clone)]
 pub struct Settings {
     pub application: ApplicationSettings,
     pub database: DatabaseSettings,
@@ -11,34 +10,32 @@ pub struct Settings {
     pub email_client: EmailClientSettings,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Clone)]
 pub struct ApplicationSettings {
     pub host: String,
-    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Clone)]
 pub struct DatabaseSettings {
     pub username: String,
     pub password: String,
     pub host: String,
-    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub database_name: String,
     pub require_ssl: bool,
+    pub connection_timeout: u16, // in seconds
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Clone)]
 pub struct TracingSettings {
     pub service_name: String,
     pub log_level: String,
     pub host: String,
-    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Clone)]
 pub struct EmailClientSettings {
     pub base_url: String,
     pub sender_email: String,

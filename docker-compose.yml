@@ -26,6 +26,7 @@ services:
   subscriptions:
     build:
       context: .
+      dockerfile: Dockerfile
     image: rust-zero2prod
     restart: always
     ports:
