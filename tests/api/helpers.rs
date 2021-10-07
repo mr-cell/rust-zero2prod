@@ -59,8 +59,7 @@ pub async fn spawn_app<'d>() -> Box<TestApp<'d>> {
     let app = rust_zero2prod::startup::Application::build(&configuration)
         .await
         .expect("Could not start the application.");
-    let db_pool =
-        rust_zero2prod::startup::create_db_connection_pool(&configuration.database).await;
+    let db_pool = rust_zero2prod::startup::create_db_connection_pool(&configuration.database).await;
     let address = format!("http://127.0.0.1:{}", app.get_port());
     let _ = tokio::spawn(app.run_until_stopped());
 
