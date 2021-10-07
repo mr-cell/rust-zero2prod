@@ -41,7 +41,7 @@ impl EmailClient {
             from: EmailAddress {
                 email: recipient.as_ref(),
             },
-            subject: subject,
+            subject,
             content: vec![
                 EmailContent {
                     content_type: "text/plain",
