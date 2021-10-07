@@ -12,8 +12,8 @@ use crate::routes;
 use tracing_actix_web::TracingLogger;
 
 pub struct Application {
-    pub server: Server,
-    pub port: u16,
+    server: Server,
+    port: u16,
 }
 
 impl Application {
@@ -28,10 +28,10 @@ impl Application {
         );
         let tcp_listener = TcpListener::bind(address).expect("Failed to bind the address.");
 
-        Application::run(tcp_listener, db_connection_pool, email_client)
+        Application::initialize(tcp_listener, db_connection_pool, email_client)
     }
 
-    fn run(
+    fn initialize(
         tcp_listener: TcpListener,
         connection_pool: PgPool,
         email_client: EmailClient,
@@ -53,6 +53,14 @@ impl Application {
         .run();
 
         Ok(Self { server, port })
+    }
+
+    pub fn get_port(&self) -> u16 {
+        self.port
+    }
+
+    pub async fn run_until_stopped(self) -> Result<(), std::io::Error> {
+        self.server.await
     }
 }
 

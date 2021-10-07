@@ -12,6 +12,6 @@ async fn main() -> std::io::Result<()> {
 
     let app = Application::build(&configuration)
         .await
-        .expect("Failed to start the application.");
-    app.server.await
+        .expect("Failed to initialize the application.");
+    app.run_until_stopped().await
 }
