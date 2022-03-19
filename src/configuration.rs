@@ -39,7 +39,7 @@ pub struct TracingSettings {
 pub struct EmailClientSettings {
     pub base_url: String,
     pub sender_email: String,
-    pub authorization_token: String,
+    pub api_key: String,
     pub timeout_millis: u64,
 }
 

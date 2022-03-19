@@ -1,2 +1,4 @@
 /target
 .idea/
+profiles/.env*
+!profiles/.env.template

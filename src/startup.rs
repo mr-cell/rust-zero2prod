@@ -69,7 +69,7 @@ pub fn create_email_client(config: &EmailClientSettings) -> EmailClient {
     EmailClient::new(
         config.base_url.clone(),
         sender_email,
-        config.authorization_token.clone(),
+        config.api_key.clone(),
         Duration::from_millis(config.timeout_millis),
     )
 }

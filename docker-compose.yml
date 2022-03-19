@@ -20,8 +20,8 @@ services:
     image: postgres:13-alpine
     container_name: postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
       POSTGRES_DB: newsletter
   subscriptions:
     build:
@@ -29,6 +29,10 @@ services:
       dockerfile: Dockerfile
     image: rust-zero2prod
     restart: always
+    environment:
+      APP_EMAIL_CLIENT__API_KEY: ${EMAIL_CLIENT_API_KEY}
+      APP_DATABASE__USERNAME: ${DATABASE_USER}
+      APP_DATABASE__PASSWORD: ${DATABASE_PASSWORD}
     ports:
       - "8000:8000"
     depends_on:

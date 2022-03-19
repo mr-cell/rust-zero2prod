@@ -6,21 +6,21 @@ pub struct EmailClient {
     http_client: Client,
     base_url: String,
     sender: SubscriberEmail,
-    authorization_token: String,
+    api_key: String,
 }
 
 impl EmailClient {
     pub fn new(
         base_url: String,
         sender: SubscriberEmail,
-        authorization_token: String,
+        api_key: String,
         timeout: Duration,
     ) -> Self {
         Self {
             http_client: Client::builder().timeout(timeout).build().unwrap(),
             base_url,
             sender,
-            authorization_token,
+            api_key,
         }
     }
 
@@ -58,7 +58,7 @@ impl EmailClient {
             .post(url)
             .header(
                 "Authorization",
-                format!("Bearer {}", self.authorization_token),
+                format!("Bearer {}", self.api_key),
             )
             .json(&request_body)
             .send()

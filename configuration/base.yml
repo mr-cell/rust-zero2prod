@@ -3,8 +3,8 @@ application:
 database:
   host: "localhost"
   port: 5432
-  username: "postgres"
-  password: "password"
+  username: ""
+  password: ""
   database_name: "newsletter"
   require_ssl: false
   connection_timeout: 2
@@ -16,5 +16,5 @@ tracing:
 email_client:
   base_url: "https://api.sendgrid.com"
   sender_email: "marcel.schally@gmail.com"
-  authorization_token: "my-secret-token"
+  api_key: ""
   timeout_millis: 10000

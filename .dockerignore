@@ -2,7 +2,7 @@
 .idea/
 target/
 .github/
-.env
+profiles/
 tests/
 Dockerfile
 *.Dockerfile
