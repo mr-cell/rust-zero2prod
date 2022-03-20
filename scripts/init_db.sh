@@ -5,7 +5,7 @@ if ! [ -x "$(command -v psql)" ]; then
   exit 1
 fi
 
-if [ -z "${ENABLE_MIGRATION}" ]; then
+if [ "${ENABLE_MIGRATION}" = "true" ]; then
   if ! [ -x "$(command -v sqlx)" ]; then
     echo >&2 "Error: sqlx is not installed."
     echo >&2 "Use:"
@@ -38,7 +38,7 @@ done
 
 >&2 echo "Postgres is up and running on port ${DB_PORT}!"
 
-if [ -z "${ENABLE_MIGRATION}" ]; then
+if [ "${ENABLE_MIGRATION}" = "true" ]; then
   export DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}
   sqlx database create
   sqlx migrate run

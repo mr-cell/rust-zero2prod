@@ -33,7 +33,7 @@ jobs:
           cargo install --version=0.5.5 --locked sqlx-cli --no-default-features --features postgres
           ENABLE_MIGRATION=true SKIP_DOCKER=true ./scripts/init_db.sh
       - name: Check SQLX metadata file
-        run: SQLX_OFFLINE=true cargo sqlx prepare --check -- --bin rust-zero2prod
+        run: cargo sqlx prepare --check -- --bin rust-zero2prod
 
   test:
     name: Test
