@@ -50,6 +50,12 @@ To start the Docker Compose stack one needs to fill in the appropriate .env file
 A template .env file can be seen here: *./profiles/.env.template*. 
 One can create its own ./profiles/.env file based on the template and fill in all necessary secrets (db credentials, api keys).
 
+### Building the application
+To build the application one can execute the following command:
+```shell
+$ docker-compose --env-file=./profiles/.env build
+```
+
 ### Starting the application
 To start the application one can execute the following command:
 ```shell
@@ -57,3 +63,14 @@ $ docker-compose --env-file=./profiles/.env up
 ```
 
 The command should also build the application (both binary and Docker image) if the Docker image does not exist.
+
+## Adding new SQL migrations
+To add new SQL migration one needs to execute the following command (sqlx-cli create needs to be installed):
+```shell
+$ sqlx migrate add <migration_script_name>
+```
+
+An empty file with that name will be created in ./migrations directory. To apply the migration one needs to **rebuild**
+the application and run it. Why rebuild? Because the app internally uses *sqlx::migrate!()* macro which gets expanded at the
+build time - so migration file list will get set then. **If we add a new migration script after the aplication has been built
+and try to run it - the new migration won't be applied**!
