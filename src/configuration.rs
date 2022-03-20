@@ -1,4 +1,5 @@
 use crate::domain::SubscriberEmail;
+use secrecy::{ExposeSecret, Secret};
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use std::convert::{TryFrom, TryInto};
 
@@ -18,8 +19,8 @@ pub struct ApplicationSettings {
 
 #[derive(serde::Deserialize, Clone)]
 pub struct DatabaseSettings {
-    pub username: String,
-    pub password: String,
+    pub username: Secret<String>,
+    pub password: Secret<String>,
     pub host: String,
     pub port: u16,
     pub database_name: String,
@@ -39,7 +40,7 @@ pub struct TracingSettings {
 pub struct EmailClientSettings {
     pub base_url: String,
     pub sender_email: String,
-    pub api_key: String,
+    pub api_key: Secret<String>,
     pub timeout_millis: u64,
 }
 
@@ -52,8 +53,8 @@ impl DatabaseSettings {
         };
         PgConnectOptions::new()
             .host(&self.host)
-            .username(&self.username)
-            .password(&self.password)
+            .username(&self.username.expose_secret())
+            .password(&self.password.expose_secret())
             .port(self.port)
             .ssl_mode(ssl_mode)
     }

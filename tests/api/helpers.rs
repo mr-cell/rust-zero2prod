@@ -1,6 +1,7 @@
 use once_cell::sync::Lazy;
 use rust_zero2prod::configuration::{get_configuration, TracingSettings};
 use rust_zero2prod::telemetry::{get_tracing_subscriber, init_tracing_subscriber};
+use secrecy::Secret;
 use sqlx::PgPool;
 use std::collections::HashMap;
 use testcontainers::clients::Cli;
@@ -67,8 +68,8 @@ pub async fn spawn_app<'d>() -> Box<TestApp<'d>> {
     let configuration = {
         let mut c = get_configuration().expect("Failed to read configuration");
         c.database.port = db_port;
-        c.database.username = db_username.into();
-        c.database.password = db_password.into();
+        c.database.username = Secret::new(db_username.into());
+        c.database.password = Secret::new(db_password.into());
         c.application.port = 0;
         c
     };

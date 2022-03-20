@@ -38,6 +38,7 @@ opentelemetry-jaeger = {version = "0.15.0", features = ["rt-tokio"] }
 serde-aux = "2.2.0"
 unicode-segmentation = "1.8.0"
 validator = "0.14.0"
+secrecy = { version = "0.8.0", features = ["serde"] }
 
 [dev-dependencies]
 actix-rt = "2.2.0"

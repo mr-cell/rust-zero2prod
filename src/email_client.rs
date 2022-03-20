@@ -1,19 +1,20 @@
 use crate::domain::SubscriberEmail;
 use reqwest::Client;
+use secrecy::{ExposeSecret, Secret};
 use std::time::Duration;
 
 pub struct EmailClient {
     http_client: Client,
     base_url: String,
     sender: SubscriberEmail,
-    api_key: String,
+    api_key: Secret<String>,
 }
 
 impl EmailClient {
     pub fn new(
         base_url: String,
         sender: SubscriberEmail,
-        api_key: String,
+        api_key: Secret<String>,
         timeout: Duration,
     ) -> Self {
         Self {
@@ -24,6 +25,7 @@ impl EmailClient {
         }
     }
 
+    #[tracing::instrument(name = "Sending email", skip(self, html_content, text_content))]
     pub async fn send_email(
         &self,
         recipient: SubscriberEmail,
@@ -56,7 +58,10 @@ impl EmailClient {
 
         self.http_client
             .post(url)
-            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header(
+                "Authorization",
+                format!("Bearer {}", self.api_key.expose_secret()),
+            )
             .json(&request_body)
             .send()
             .await?
@@ -101,6 +106,7 @@ mod tests {
     use fake::faker::lorem::en::Sentence;
     use fake::{Fake, Faker};
     use jsonpath_lib::selector;
+    use secrecy::Secret;
     use std::time::Duration;
     use wiremock::matchers::{any, header, header_exists, method, path};
     use wiremock::{Mock, MockServer, Request, ResponseTemplate};
@@ -194,7 +200,12 @@ mod tests {
     }
 
     fn email_client(base_url: String) -> EmailClient {
-        EmailClient::new(base_url, email(), Faker.fake(), Duration::from_millis(200))
+        EmailClient::new(
+            base_url,
+            email(),
+            Secret::new(Faker.fake()),
+            Duration::from_millis(200),
+        )
     }
 
     struct SendEmailRequestMatcher;
