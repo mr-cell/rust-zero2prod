@@ -8,6 +8,7 @@ use testcontainers::clients::Cli;
 use testcontainers::core::Port;
 use testcontainers::images::postgres::Postgres;
 use testcontainers::{clients, images, Container, Docker, RunArgs};
+use wiremock::MockServer;
 
 static DOCKER: Lazy<Cli> = Lazy::new(|| clients::Cli::default());
 
@@ -37,6 +38,7 @@ struct DbContainerSettings {
 pub struct TestApp<'d> {
     pub address: String,
     pub db_pool: PgPool,
+    pub email_server: MockServer,
     _db_container: Container<'d, Cli, Postgres>,
 }
 
@@ -65,12 +67,15 @@ pub async fn spawn_app<'d>() -> Box<TestApp<'d>> {
     };
     let (db_container, db_port) = configure_db_container(&db_container_settings);
 
+    let email_server = MockServer::start().await;
+
     let configuration = {
         let mut c = get_configuration().expect("Failed to read configuration");
         c.database.port = db_port;
         c.database.username = Secret::new(db_username.into());
         c.database.password = Secret::new(db_password.into());
         c.application.port = 0;
+        c.email_client.base_url = email_server.uri();
         c
     };
 
@@ -84,6 +89,7 @@ pub async fn spawn_app<'d>() -> Box<TestApp<'d>> {
     Box::new(TestApp {
         address,
         db_pool,
+        email_server,
         _db_container: db_container,
     })
 }
