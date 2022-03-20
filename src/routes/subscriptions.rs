@@ -44,20 +44,14 @@ pub async fn subscribe(
         }
     };
 
-    match insert_subscriber(&db_pool, &new_subscriber).await {
-        Err(error) => {
-            tracing::error!("Inserting new subscriber into database failed: {:?}", error);
-            return HttpResponse::InternalServerError();
-        }
-        _ => {}
+    if let Err(error) = insert_subscriber(&db_pool, &new_subscriber).await {
+        tracing::error!("Inserting new subscriber into database failed: {:?}", error);
+        return HttpResponse::InternalServerError();
     }
 
-    match send_confirmation_email(&email_client, new_subscriber).await {
-        Err(error) => {
-            tracing::error!("Sending confirmation email failed: {}", error);
-            return HttpResponse::InternalServerError();
-        }
-        _ => {}
+    if let Err(error) = send_confirmation_email(&email_client, new_subscriber).await {
+        tracing::error!("Sending confirmation email failed: {}", error);
+        return HttpResponse::InternalServerError();
     }
 
     HttpResponse::Ok()
