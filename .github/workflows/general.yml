@@ -7,6 +7,8 @@ env:
 
 jobs:
   check_sqlx_metadata:
+    env:
+      DATABASE_URL: postgres://postgres:password@localhost:5432/newsletter
     name: Check SQLX metadata file
     runs-on: ubuntu-latest
     services:
@@ -29,9 +31,9 @@ jobs:
         run: |
           sudo apt-get install libpq-dev -y
           cargo install --version=0.5.5 --locked sqlx-cli --no-default-features --features postgres
-          ENABLE_MIGRATION=true DATABASE_URL=postgres://postgres:password@localhost:5432/newsletter SKIP_DOCKER=true ./scripts/init_db.sh
+          ENABLE_MIGRATION=true SKIP_DOCKER=true ./scripts/init_db.sh
       - name: Check SQLX metadata file
-        run: cargo sqlx prepare --check -- --bin rust-zero2prod
+        run: SQLX_OFFLINE=true cargo sqlx prepare --check -- --bin rust-zero2prod
 
   test:
     name: Test
