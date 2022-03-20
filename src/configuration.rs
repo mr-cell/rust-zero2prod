@@ -3,7 +3,7 @@ use secrecy::{ExposeSecret, Secret};
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use std::convert::{TryFrom, TryInto};
 
-#[derive(serde::Deserialize, Clone)]
+#[derive(serde::Deserialize, Clone, Debug)]
 pub struct Settings {
     pub application: ApplicationSettings,
     pub database: DatabaseSettings,
@@ -11,13 +11,13 @@ pub struct Settings {
     pub email_client: EmailClientSettings,
 }
 
-#[derive(serde::Deserialize, Clone)]
+#[derive(serde::Deserialize, Clone, Debug)]
 pub struct ApplicationSettings {
     pub host: String,
     pub port: u16,
 }
 
-#[derive(serde::Deserialize, Clone)]
+#[derive(serde::Deserialize, Clone, Debug)]
 pub struct DatabaseSettings {
     pub username: Secret<String>,
     pub password: Secret<String>,
@@ -28,7 +28,7 @@ pub struct DatabaseSettings {
     pub connection_timeout: u16, // in seconds
 }
 
-#[derive(serde::Deserialize, Clone)]
+#[derive(serde::Deserialize, Clone, Debug)]
 pub struct TracingSettings {
     pub service_name: String,
     pub log_level: String,
@@ -36,7 +36,7 @@ pub struct TracingSettings {
     pub port: u16,
 }
 
-#[derive(serde::Deserialize, Clone)]
+#[derive(serde::Deserialize, Clone, Debug)]
 pub struct EmailClientSettings {
     pub base_url: String,
     pub sender_email: String,

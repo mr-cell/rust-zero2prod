@@ -17,6 +17,7 @@ pub struct Application {
 }
 
 impl Application {
+    #[tracing::instrument(name = "Initializing Application")]
     pub async fn build(configuration: &Settings) -> Result<Self, std::io::Error> {
         let db_connection_pool = create_db_connection_pool(&configuration.database).await;
         migrate_db(&db_connection_pool).await;
@@ -64,6 +65,7 @@ impl Application {
     }
 }
 
+#[tracing::instrument(name = "Creating Email Client")]
 pub fn create_email_client(config: &EmailClientSettings) -> EmailClient {
     let sender_email = config.sender().expect("Invalid sender email address");
     EmailClient::new(
@@ -74,6 +76,7 @@ pub fn create_email_client(config: &EmailClientSettings) -> EmailClient {
     )
 }
 
+#[tracing::instrument(name = "Creating DB connection pool")]
 pub async fn create_db_connection_pool(config: &DatabaseSettings) -> PgPool {
     PgPoolOptions::new()
         .connect_timeout(Duration::from_secs(config.connection_timeout.into()))

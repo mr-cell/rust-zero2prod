@@ -1,0 +1,1 @@
+ALTER TABLE subscriptions ADD COLUMN status VARCHAR(128) NULL;
