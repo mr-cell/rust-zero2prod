@@ -29,7 +29,7 @@ jobs:
         run: |
           sudo apt-get install libpq-dev -y
           cargo install --version=0.5.5 --locked sqlx-cli --no-default-features --features postgres
-          SKIP_DOCKER=true ./scripts/init_db.sh
+          ENABLE_MIGRATION=true DATABASE_URL=postgres://postgres:password@localhost:5432/newsletter SKIP_DOCKER=true ./scripts/init_db.sh
       - name: Check SQLX metadata file
         run: cargo sqlx prepare --check -- --bin rust-zero2prod
 
