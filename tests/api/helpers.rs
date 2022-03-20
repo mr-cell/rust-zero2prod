@@ -54,9 +54,12 @@ impl TestApp<'_> {
 pub async fn spawn_app<'d>() -> Box<TestApp<'d>> {
     Lazy::force(&TRACING);
 
+    let db_username = "postgres";
+    let db_password = "password";
+
     let db_container_settings = DbContainerSettings {
-        username: "postgres".into(),
-        password: "password".into(),
+        username: db_username.into(),
+        password: db_password.into(),
         db_name: "newsletter".into(),
     };
     let (db_container, db_port) = configure_db_container(&db_container_settings);
@@ -64,6 +67,8 @@ pub async fn spawn_app<'d>() -> Box<TestApp<'d>> {
     let configuration = {
         let mut c = get_configuration().expect("Failed to read configuration");
         c.database.port = db_port;
+        c.database.username = db_username.into();
+        c.database.password = db_password.into();
         c.application.port = 0;
         c
     };
