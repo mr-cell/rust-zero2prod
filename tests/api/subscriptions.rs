@@ -113,6 +113,26 @@ async fn subscribe_sends_a_confirmation_email_for_valid_data() {
 }
 
 #[actix_rt::test]
+async fn subscribe_fails_when_sending_confirmation_email_fails() {
+    // given
+    let app = spawn_app().await;
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+
+    Mock::given(path("/v3/mail/send"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(500))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    // when
+    let response = app.post_subscriptions(body.into()).await;
+
+    // then
+    assert_eq!(response.status().as_u16(), 500);
+}
+
+#[actix_rt::test]
 async fn subscribe_sends_a_confirmation_email_with_a_link() {
     // given
     let app = spawn_app().await;
