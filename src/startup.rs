@@ -11,6 +11,8 @@ use crate::email_client::EmailClient;
 use crate::routes;
 use tracing_actix_web::TracingLogger;
 
+pub struct ApplicationBaseUrl(pub String);
+
 pub struct Application {
     server: Server,
     port: u16,
@@ -23,22 +25,25 @@ impl Application {
         migrate_db(&db_connection_pool).await;
 
         let email_client = create_email_client(&configuration.email_client);
+        let base_url = &configuration.application.base_url;
         let address = format!(
             "{}:{}",
             configuration.application.host, configuration.application.port
         );
         let tcp_listener = TcpListener::bind(address).expect("Failed to bind the address.");
 
-        Application::initialize(tcp_listener, db_connection_pool, email_client)
+        Application::initialize(tcp_listener, db_connection_pool, email_client, base_url)
     }
 
     fn initialize(
         tcp_listener: TcpListener,
         connection_pool: PgPool,
         email_client: EmailClient,
+        base_url: &str,
     ) -> Result<Self, std::io::Error> {
         let connection_pool = web::Data::new(connection_pool);
         let email_client = web::Data::new(email_client);
+        let base_url = web::Data::new(ApplicationBaseUrl(base_url.to_string()));
 
         let port = tcp_listener.local_addr().unwrap().port();
 
@@ -47,8 +52,10 @@ impl Application {
                 .wrap(TracingLogger::default())
                 .route("/health", web::get().to(routes::health_check))
                 .route("/subscriptions", web::post().to(routes::subscribe))
+                .route("/subscriptions/confirm", web::get().to(routes::confirm))
                 .app_data(connection_pool.clone())
                 .app_data(email_client.clone())
+                .app_data(base_url.clone())
         })
         .listen(tcp_listener)?
         .run();

@@ -1749,6 +1749,7 @@ dependencies = [
  "opentelemetry-jaeger",
  "quickcheck",
  "quickcheck_macros",
+ "rand 0.8.4",
  "reqwest",
  "secrecy",
  "serde 1.0.127",

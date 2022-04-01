@@ -1,7 +1,10 @@
 use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
 use crate::email_client::EmailClient;
+use crate::startup::ApplicationBaseUrl;
 use actix_web::{web, HttpResponse, Responder};
 use chrono::Utc;
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
 use sqlx::PgPool;
 use std::convert::{TryFrom, TryInto};
 use uuid::Uuid;
@@ -25,7 +28,7 @@ impl TryFrom<SubscribeFormData> for NewSubscriber {
 #[allow(clippy::async_yields_async)]
 #[tracing::instrument(
     name = "Adding a new subscriber",
-    skip(form, db_pool, email_client),
+    skip(form, db_pool, email_client, base_url),
     fields(
         subscriber_email = %form.email,
         subscriber_name = %form.name
@@ -35,6 +38,7 @@ pub async fn subscribe(
     form: web::Form<SubscribeFormData>,
     db_pool: web::Data<PgPool>,
     email_client: web::Data<EmailClient>,
+    base_url: web::Data<ApplicationBaseUrl>,
 ) -> impl Responder {
     let new_subscriber = match form.0.try_into() {
         Ok(new_subscriber) => new_subscriber,
@@ -44,17 +48,46 @@ pub async fn subscribe(
         }
     };
 
-    if let Err(error) = insert_subscriber(&db_pool, &new_subscriber).await {
-        tracing::error!("Inserting new subscriber into database failed: {:?}", error);
+    let subscriber_id = match insert_subscriber(&db_pool, &new_subscriber).await {
+        Ok(subscriber_id) => subscriber_id,
+        Err(error) => {
+            tracing::error!("Inserting new subscriber into database failed: {:?}", error);
+            return HttpResponse::InternalServerError();
+        }
+    };
+    let subscription_token = generate_subscription_token();
+
+    if let Err(error) =
+        insert_subscription_token(&db_pool, &subscription_token, &subscriber_id).await
+    {
+        tracing::error!(
+            "Inserting subscription token into database failed: {:?}",
+            error
+        );
         return HttpResponse::InternalServerError();
     }
 
-    if let Err(error) = send_confirmation_email(&email_client, new_subscriber).await {
+    if let Err(error) = send_confirmation_email(
+        &email_client,
+        new_subscriber,
+        subscription_token.as_str(),
+        &base_url.0,
+    )
+    .await
+    {
         tracing::error!("Sending confirmation email failed: {}", error);
         return HttpResponse::InternalServerError();
     }
 
     HttpResponse::Ok()
+}
+
+fn generate_subscription_token() -> String {
+    let mut rng = thread_rng();
+    std::iter::repeat_with(|| rng.sample(Alphanumeric))
+        .map(char::from)
+        .take(25)
+        .collect()
 }
 
 #[tracing::instrument(
@@ -64,17 +97,42 @@ pub async fn subscribe(
 async fn insert_subscriber(
     db_pool: &PgPool,
     new_subscriber: &NewSubscriber,
-) -> Result<(), sqlx::Error> {
+) -> Result<Uuid, sqlx::Error> {
+    let subscriber_id = Uuid::new_v4();
     sqlx::query!(
         r#"
         INSERT INTO subscriptions(id, email, name, subscribed_at, status)
         VALUES ($1, $2, $3, $4, $5)
         "#,
-        Uuid::new_v4(),
+        subscriber_id,
         new_subscriber.email.as_ref(),
         new_subscriber.name.as_ref(),
         Utc::now(),
         "PENDING"
+    )
+    .execute(db_pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        e
+    })?;
+
+    Ok(subscriber_id)
+}
+
+#[tracing::instrument(name = "Saving subscription token in the database", skip(db_pool))]
+async fn insert_subscription_token(
+    db_pool: &PgPool,
+    subscription_token: &str,
+    subscriber_id: &Uuid,
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        r#"
+        INSERT INTO subscription_tokens(subscription_token, subscriber_id)
+        VALUES ($1, $2)
+        "#,
+        subscription_token,
+        subscriber_id
     )
     .execute(db_pool)
     .await
@@ -93,8 +151,13 @@ async fn insert_subscriber(
 async fn send_confirmation_email(
     email_client: &EmailClient,
     new_subscriber: NewSubscriber,
+    subscription_token: &str,
+    base_url: &str,
 ) -> Result<(), reqwest::Error> {
-    let confirmation_link = "https://my-api.com/subscriptions/confirm";
+    let confirmation_link = format!(
+        "{}/subscriptions/confirm?subscription_token={}",
+        base_url, subscription_token
+    );
     let html_body = &format!(
         "Welcome to out newsletter!<br />\
             Click <a href=\"{}\">here</a> to confirm your subscription.",

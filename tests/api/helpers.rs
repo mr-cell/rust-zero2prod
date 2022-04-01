@@ -2,7 +2,8 @@ use once_cell::sync::Lazy;
 use rust_zero2prod::configuration::{get_configuration, TracingSettings};
 use rust_zero2prod::telemetry::{get_tracing_subscriber, init_tracing_subscriber};
 use secrecy::Secret;
-use sqlx::PgPool;
+use sqlx::postgres::PgArguments;
+use sqlx::{Arguments, PgPool};
 use std::collections::HashMap;
 use testcontainers::clients::Cli;
 use testcontainers::core::Port;
@@ -35,8 +36,21 @@ struct DbContainerSettings {
     db_name: String,
 }
 
+pub struct ConfirmationLinks {
+    pub html: reqwest::Url,
+    pub plain: reqwest::Url,
+}
+
+#[derive(sqlx::FromRow)]
+pub struct SubscriptionDetails {
+    pub email: String,
+    pub name: String,
+    pub status: String,
+}
+
 pub struct TestApp<'d> {
     pub address: String,
+    pub port: u16,
     pub db_pool: PgPool,
     pub email_server: MockServer,
     _db_container: Container<'d, Cli, Postgres>,
@@ -51,6 +65,53 @@ impl TestApp<'_> {
             .send()
             .await
             .expect("Failed to execute request")
+    }
+
+    pub async fn get_saved_subscription(&self, email: &str) -> SubscriptionDetails {
+        let mut args = PgArguments::default();
+        args.add(email);
+        sqlx::query_as_with::<_, SubscriptionDetails, PgArguments>(
+            "SELECT email, name, status FROM subscriptions WHERE email = $1",
+            args,
+        )
+        .fetch_one(&self.db_pool)
+        .await
+        .expect("Failed to fetch saved subscriptions")
+    }
+
+    pub fn get_confirmation_links(&self, email_request: &wiremock::Request) -> ConfirmationLinks {
+        let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+
+        let get_link = |s: &str| -> reqwest::Url {
+            let links: Vec<_> = linkify::LinkFinder::new()
+                .links(s)
+                .filter(|l| *l.kind() == linkify::LinkKind::Url)
+                .collect();
+            assert_eq!(links.len(), 1);
+            let raw_link = links[0].as_str().to_owned();
+            let mut confirmation_link = reqwest::Url::parse(&raw_link).unwrap();
+
+            assert_eq!(confirmation_link.host_str().unwrap(), "127.0.0.1");
+            confirmation_link.set_port(Some(self.port)).unwrap();
+
+            confirmation_link
+        };
+
+        let html_link = get_link(
+            jsonpath_lib::selector(&body)("$.content[?(@.type == 'text/html')].value").unwrap()[0]
+                .as_str()
+                .unwrap(),
+        );
+        let text_link = get_link(
+            jsonpath_lib::selector(&body)("$.content[?(@.type == 'text/plain')].value").unwrap()[0]
+                .as_str()
+                .unwrap(),
+        );
+
+        ConfirmationLinks {
+            html: html_link,
+            plain: text_link,
+        }
     }
 }
 
@@ -83,11 +144,13 @@ pub async fn spawn_app<'d>() -> Box<TestApp<'d>> {
         .await
         .expect("Could not start the application.");
     let db_pool = rust_zero2prod::startup::create_db_connection_pool(&configuration.database).await;
-    let address = format!("http://127.0.0.1:{}", app.get_port());
+    let port = app.get_port();
+    let address = format!("http://127.0.0.1:{}", port);
     let _ = tokio::spawn(app.run_until_stopped());
 
     Box::new(TestApp {
         address,
+        port,
         db_pool,
         email_server,
         _db_container: db_container,
