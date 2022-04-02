@@ -1,3 +1,4 @@
+use crate::domain::SubscriptionToken;
 use actix_web::{web, HttpResponse, Responder};
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -19,7 +20,15 @@ pub async fn confirm(
     db_pool: web::Data<PgPool>,
     _parameters: web::Query<Parameters>,
 ) -> impl Responder {
-    let id = match find_subscriber_id(&db_pool, _parameters.subscription_token.as_str()).await {
+    let token = match SubscriptionToken::parse(_parameters.subscription_token.clone()) {
+        Ok(token) => token,
+        Err(error) => {
+            tracing::error!("Received subscription token is not valid: {}", error);
+            return HttpResponse::BadRequest();
+        }
+    };
+
+    let id = match find_subscriber_id(&db_pool, &token).await {
         Ok(subscriber_id) => subscriber_id,
         Err(error) => {
             tracing::error!(
@@ -45,13 +54,13 @@ pub async fn confirm(
 #[tracing::instrument(name = "Find subscriber id from subscription token", skip(db_pool))]
 async fn find_subscriber_id(
     db_pool: &PgPool,
-    subscription_token: &str,
+    subscription_token: &SubscriptionToken,
 ) -> Result<Option<Uuid>, sqlx::Error> {
     let result = sqlx::query!(
         r#"
         SELECT subscriber_id FROM subscription_tokens WHERE subscription_token = $1
         "#,
-        subscription_token,
+        subscription_token.as_ref(),
     )
     .fetch_optional(db_pool)
     .await
