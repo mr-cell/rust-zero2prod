@@ -29,6 +29,7 @@ RUN apt-get update -y \
     && rm -rf /var/lib/apt/lists/* \
 COPY migrations migrations
 COPY --from=build /app/target/release/rust-zero2prod rust-zero2prod
+COPY templates templates
 COPY configuration configuration
 ENV APP_ENVIRONMENT production
 ENTRYPOINT ["./rust-zero2prod"]

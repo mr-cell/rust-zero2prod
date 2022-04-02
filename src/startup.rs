@@ -6,9 +6,12 @@ use actix_web::{web, App, HttpServer};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{PgPool, Pool, Postgres};
 
-use crate::configuration::{DatabaseSettings, EmailClientSettings, Settings};
+use crate::configuration::{
+    DatabaseSettings, EmailClientSettings, Settings, TemplateEngineSettings,
+};
 use crate::email_client::EmailClient;
 use crate::routes;
+use tera::Tera;
 use tracing_actix_web::TracingLogger;
 
 pub struct ApplicationBaseUrl(pub String);
@@ -25,6 +28,7 @@ impl Application {
         migrate_db(&db_connection_pool).await;
 
         let email_client = create_email_client(&configuration.email_client);
+        let templates = create_template_engine(&configuration.template_engine);
         let base_url = &configuration.application.base_url;
         let address = format!(
             "{}:{}",
@@ -32,18 +36,26 @@ impl Application {
         );
         let tcp_listener = TcpListener::bind(address).expect("Failed to bind the address.");
 
-        Application::initialize(tcp_listener, db_connection_pool, email_client, base_url)
+        Application::initialize(
+            tcp_listener,
+            db_connection_pool,
+            email_client,
+            templates,
+            base_url,
+        )
     }
 
     fn initialize(
         tcp_listener: TcpListener,
         connection_pool: PgPool,
         email_client: EmailClient,
+        templates: Tera,
         base_url: &str,
     ) -> Result<Self, std::io::Error> {
         let connection_pool = web::Data::new(connection_pool);
         let email_client = web::Data::new(email_client);
         let base_url = web::Data::new(ApplicationBaseUrl(base_url.to_string()));
+        let templates = web::Data::new(templates);
 
         let port = tcp_listener.local_addr().unwrap().port();
 
@@ -56,6 +68,7 @@ impl Application {
                 .app_data(connection_pool.clone())
                 .app_data(email_client.clone())
                 .app_data(base_url.clone())
+                .app_data(templates.clone())
         })
         .listen(tcp_listener)?
         .run();
@@ -69,6 +82,17 @@ impl Application {
 
     pub async fn run_until_stopped(self) -> Result<(), std::io::Error> {
         self.server.await
+    }
+}
+
+#[tracing::instrument(name = "Creating Template Engine")]
+pub fn create_template_engine(settings: &TemplateEngineSettings) -> Tera {
+    match Tera::new(format!("{}/**/*", settings.templates_dir).as_str()) {
+        Ok(t) => t,
+        Err(e) => {
+            tracing::error!("Tera templates parsing error: {:?}", e);
+            ::std::process::exit(1);
+        }
     }
 }
 

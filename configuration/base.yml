@@ -18,3 +18,5 @@ email_client:
   sender_email: "marcel.schally@gmail.com"
   api_key: ""
   timeout_millis: 10000
+template_engine:
+  templates_dir: templates

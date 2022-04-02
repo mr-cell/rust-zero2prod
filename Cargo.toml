@@ -40,6 +40,7 @@ unicode-segmentation = "1.8.0"
 validator = "0.14.0"
 secrecy = { version = "0.8.0", features = ["serde"] }
 rand = { version = "0.8", features = ["std_rng"] }
+tera = "1.15.0"
 
 [dev-dependencies]
 actix-rt = "2.2.0"

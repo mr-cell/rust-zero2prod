@@ -9,6 +9,7 @@ pub struct Settings {
     pub database: DatabaseSettings,
     pub tracing: TracingSettings,
     pub email_client: EmailClientSettings,
+    pub template_engine: TemplateEngineSettings,
 }
 
 #[derive(serde::Deserialize, Clone, Debug)]
@@ -43,6 +44,11 @@ pub struct EmailClientSettings {
     pub sender_email: String,
     pub api_key: Secret<String>,
     pub timeout_millis: u64,
+}
+
+#[derive(serde::Deserialize, Clone, Debug)]
+pub struct TemplateEngineSettings {
+    pub templates_dir: String,
 }
 
 impl DatabaseSettings {

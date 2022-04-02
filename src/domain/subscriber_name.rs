@@ -1,3 +1,5 @@
+use std::fmt;
+use std::fmt::Formatter;
 use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Debug)]
@@ -15,6 +17,12 @@ impl SubscriberName {
         } else {
             Ok(Self(s))
         }
+    }
+}
+
+impl fmt::Display for SubscriberName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
