@@ -19,6 +19,14 @@ COPY . .
 ENV SQLX_OFFLINE true
 RUN cargo build --release --bin rust-zero2prod
 
+FROM node:17-alpine3.15 AS build-fe
+
+WORKDIR /app
+COPY frontend frontend
+WORKDIR /app/frontend
+RUN npm install
+RUN npm run build
+
 FROM debian:buster-slim AS run
 
 WORKDIR /app
@@ -29,6 +37,7 @@ RUN apt-get update -y \
     && rm -rf /var/lib/apt/lists/* \
 COPY migrations migrations
 COPY --from=build /app/target/release/rust-zero2prod rust-zero2prod
+COPY --from=build-fe /app/static static
 COPY templates templates
 COPY configuration configuration
 ENV APP_ENVIRONMENT production

@@ -7,3 +7,5 @@ tests/
 Dockerfile
 *.Dockerfile
 scripts/
+static/
+frontend/node_modules

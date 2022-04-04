@@ -1,4 +1,5 @@
 /target
 .idea/
+/static
 profiles/.env*
 !profiles/.env.template

@@ -13,7 +13,8 @@ name = "rust-zero2prod"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-actix-web = "4.0.0-beta.8"
+actix-web = "4.0.0"
+actix-files = "0.6.0"
 sqlx = { version = "0.5.5", default-features = false, features = [
     "runtime-actix-rustls",
     "macros",
@@ -31,7 +32,7 @@ tracing = { version = "0.1", features = ["log"] }
 tracing-subscriber = { version = "0.2.12", features = ["registry", "env-filter"] }
 tracing-bunyan-formatter = "0.2.4"
 tracing-log = "0.1.2"
-tracing-actix-web = "0.4.0-beta.8"
+tracing-actix-web = "0.5"
 tracing-opentelemetry = "0.15.0"
 opentelemetry = { version = "0.16.0", features = ["rt-tokio"] }
 opentelemetry-jaeger = {version = "0.15.0", features = ["rt-tokio"] }
