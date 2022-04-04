@@ -103,3 +103,14 @@ jobs:
         with:
           name: code-coverage-report
           path: cobertura.xml
+  test_frontend:
+    name: Test Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@master
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run test:unit
+      - run: npm run test:e2e:ci
