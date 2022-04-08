@@ -1,5 +1,15 @@
 {
   "db": "PostgreSQL",
+  "09de43429c599ed825c1babf054ea395cf06840177ef522682923965f0f7b991": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "ALTER TABLE subscription_tokens DROP COLUMN subscription_token;"
+  },
   "974e517c027a705a10e82eea6c3034941ff27c978ef6c678df29d1ac265c002d": {
     "describe": {
       "columns": [],

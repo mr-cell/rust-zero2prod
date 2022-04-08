@@ -1,13 +1,15 @@
 use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
 use crate::email_client::EmailClient;
+use crate::routes::errors::{StoreTokenError, SubscribeError};
 use crate::startup::ApplicationBaseUrl;
-use actix_web::{web, HttpResponse, Responder};
+use actix_web::{web, HttpResponse};
+use anyhow::Context;
 use chrono::Utc;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use sqlx::{PgPool, Postgres, Transaction};
 use std::convert::{TryFrom, TryInto};
-use tera::{Context, Tera};
+use tera::Tera;
 use uuid::Uuid;
 
 #[derive(serde::Deserialize)]
@@ -41,48 +43,25 @@ pub async fn subscribe(
     email_client: web::Data<EmailClient>,
     base_url: web::Data<ApplicationBaseUrl>,
     templates: web::Data<Tera>,
-) -> impl Responder {
-    let new_subscriber = match form.0.try_into() {
-        Ok(new_subscriber) => new_subscriber,
-        Err(message) => {
-            tracing::error!("Subscribing new user failed: {}", message);
-            return HttpResponse::BadRequest();
-        }
-    };
-
-    let mut transaction = match db_pool.begin().await {
-        Ok(transaction) => transaction,
-        Err(error) => {
-            tracing::error!("Creating new DB transaction failed: {:?}", error);
-            return HttpResponse::InternalServerError();
-        }
-    };
-
-    let subscriber_id = match insert_subscriber(&mut transaction, &new_subscriber).await {
-        Ok(subscriber_id) => subscriber_id,
-        Err(error) => {
-            tracing::error!("Inserting new subscriber into database failed: {:?}", error);
-            return HttpResponse::InternalServerError();
-        }
-    };
+) -> Result<HttpResponse, SubscribeError> {
+    let new_subscriber = form.0.try_into().map_err(SubscribeError::ValidationError)?;
+    let mut transaction = db_pool
+        .begin()
+        .await
+        .context("Failed to acquire database connection from the pool.")?;
+    let subscriber_id = insert_subscriber(&mut transaction, &new_subscriber)
+        .await
+        .context("Failed to insert new subscriber to the database.")?;
     let subscription_token = generate_subscription_token();
+    store_token(&mut transaction, &subscription_token, &subscriber_id)
+        .await
+        .context("Failed to store subscription token.")?;
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit SQL transaction to store a new subscriber.")?;
 
-    if let Err(error) =
-        insert_subscription_token(&mut transaction, &subscription_token, &subscriber_id).await
-    {
-        tracing::error!(
-            "Inserting subscription token into database failed: {:?}",
-            error
-        );
-        return HttpResponse::InternalServerError();
-    }
-
-    if let Err(error) = transaction.commit().await {
-        tracing::error!("Commiting DB transaction failed: {:?}", error);
-        return HttpResponse::InternalServerError();
-    }
-
-    if let Err(error) = send_confirmation_email(
+    send_confirmation_email(
         &email_client,
         new_subscriber,
         subscription_token.as_str(),
@@ -90,12 +69,9 @@ pub async fn subscribe(
         &templates,
     )
     .await
-    {
-        tracing::error!("Sending confirmation email failed: {}", error);
-        return HttpResponse::InternalServerError();
-    }
+    .context("Failed to send a confirmation email.")?;
 
-    HttpResponse::Ok()
+    Ok(HttpResponse::Ok().finish())
 }
 
 fn generate_subscription_token() -> String {
@@ -127,21 +103,17 @@ async fn insert_subscriber(
         "PENDING"
     )
     .execute(transaction)
-    .await
-    .map_err(|e| {
-        tracing::error!("Failed to execute query: {:?}", e);
-        e
-    })?;
+    .await?;
 
     Ok(subscriber_id)
 }
 
 #[tracing::instrument(name = "Saving subscription token in the database", skip(transaction))]
-async fn insert_subscription_token(
+async fn store_token(
     transaction: &mut Transaction<'_, Postgres>,
     subscription_token: &str,
     subscriber_id: &Uuid,
-) -> Result<(), sqlx::Error> {
+) -> Result<(), StoreTokenError> {
     sqlx::query!(
         r#"
         INSERT INTO subscription_tokens(subscription_token, subscriber_id)
@@ -152,10 +124,7 @@ async fn insert_subscription_token(
     )
     .execute(transaction)
     .await
-    .map_err(|e| {
-        tracing::error!("Failed to execute query: {:?}", e);
-        e
-    })?;
+    .map_err(StoreTokenError)?;
 
     Ok(())
 }
@@ -180,7 +149,7 @@ async fn send_confirmation_email(
         base_url, subscription_token
     );
 
-    let mut context = Context::new();
+    let mut context = tera::Context::new();
     context.insert("confirmation_link", &confirmation_link);
     let html_body = templates
         .render("subscriptions/confirm_subscription_email.html", &context)
