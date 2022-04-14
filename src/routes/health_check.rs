@@ -1,7 +1,6 @@
-use actix_web::{HttpResponse, Responder};
+use actix_web::HttpResponse;
 
-#[allow(clippy::async_yields_async)]
 #[tracing::instrument(name = "Health Check request")]
-pub async fn health_check() -> impl Responder {
-    HttpResponse::Ok()
+pub async fn health_check() -> HttpResponse {
+    HttpResponse::Ok().finish()
 }

@@ -1,0 +1,3 @@
+Hello {{ subscriber_name }}!
+This is a new issue of our newsletter:
+{{ text_newsletter }}

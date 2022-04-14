@@ -1,5 +1,5 @@
 use crate::domain::SubscriptionToken;
-use actix_web::{web, HttpResponse, Responder};
+use actix_web::{web, HttpResponse};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -8,7 +8,6 @@ pub struct Parameters {
     subscription_token: String,
 }
 
-#[allow(clippy::async_yields_async)]
 #[tracing::instrument(
     name = "Confirm a pending subscriber",
     skip(db_pool, _parameters),
@@ -19,12 +18,12 @@ pub struct Parameters {
 pub async fn confirm(
     db_pool: web::Data<PgPool>,
     _parameters: web::Query<Parameters>,
-) -> impl Responder {
+) -> HttpResponse {
     let token = match SubscriptionToken::parse(_parameters.subscription_token.clone()) {
         Ok(token) => token,
         Err(error) => {
             tracing::error!("Received subscription token is not valid: {}", error);
-            return HttpResponse::BadRequest();
+            return HttpResponse::BadRequest().finish();
         }
     };
 
@@ -35,17 +34,17 @@ pub async fn confirm(
                 "Finding subscriber id for subscription token failed: {:?}",
                 error
             );
-            return HttpResponse::InternalServerError();
+            return HttpResponse::InternalServerError().finish();
         }
     };
 
     match id {
-        None => HttpResponse::Unauthorized(),
+        None => HttpResponse::Unauthorized().finish(),
         Some(subscriber_id) => match mark_subscriber_as_confirmed(&db_pool, &subscriber_id).await {
-            Ok(()) => HttpResponse::Ok(),
+            Ok(()) => HttpResponse::Ok().finish(),
             Err(error) => {
                 tracing::error!("Marking subscriber status as confirmed failed: {:?}", error);
-                HttpResponse::InternalServerError()
+                HttpResponse::InternalServerError().finish()
             }
         },
     }

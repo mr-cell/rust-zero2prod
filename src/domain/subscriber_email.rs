@@ -1,5 +1,5 @@
 use std::fmt;
-use std::fmt::Formatter;
+use std::fmt::{Debug, Formatter};
 use validator::validate_email;
 
 #[derive(Debug)]
@@ -23,7 +23,7 @@ impl AsRef<str> for SubscriberEmail {
 
 impl fmt::Display for SubscriberEmail {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
+        std::fmt::Display::fmt(&self.0, f)
     }
 }
 

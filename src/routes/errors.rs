@@ -4,23 +4,23 @@ use std::fmt::{Debug, Formatter};
 use thiserror::Error;
 
 #[derive(Error)]
-pub enum SubscribeError {
+pub enum ApiError {
     #[error("{0}")]
     ValidationError(String),
     #[error(transparent)]
     UnexpectedError(#[from] anyhow::Error),
 }
 
-impl ResponseError for SubscribeError {
+impl ResponseError for ApiError {
     fn status_code(&self) -> StatusCode {
         match self {
-            SubscribeError::ValidationError(_) => StatusCode::BAD_REQUEST,
-            SubscribeError::UnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            ApiError::ValidationError(_) => StatusCode::BAD_REQUEST,
+            ApiError::UnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
 
-impl Debug for SubscribeError {
+impl Debug for ApiError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         error_chain_fmt(self, f)
     }

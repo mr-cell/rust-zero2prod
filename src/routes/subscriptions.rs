@@ -1,6 +1,6 @@
 use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
 use crate::email_client::EmailClient;
-use crate::routes::errors::{StoreTokenError, SubscribeError};
+use crate::routes::errors::{ApiError, StoreTokenError};
 use crate::startup::ApplicationBaseUrl;
 use actix_web::{web, HttpResponse};
 use anyhow::Context;
@@ -28,7 +28,6 @@ impl TryFrom<SubscribeFormData> for NewSubscriber {
     }
 }
 
-#[allow(clippy::async_yields_async)]
 #[tracing::instrument(
     name = "Adding a new subscriber",
     skip(form, db_pool, email_client, base_url, templates),
@@ -43,8 +42,8 @@ pub async fn subscribe(
     email_client: web::Data<EmailClient>,
     base_url: web::Data<ApplicationBaseUrl>,
     templates: web::Data<Tera>,
-) -> Result<HttpResponse, SubscribeError> {
-    let new_subscriber = form.0.try_into().map_err(SubscribeError::ValidationError)?;
+) -> Result<HttpResponse, ApiError> {
+    let new_subscriber = form.0.try_into().map_err(ApiError::ValidationError)?;
     let mut transaction = db_pool
         .begin()
         .await
@@ -143,7 +142,7 @@ async fn send_confirmation_email(
     subscription_token: &str,
     base_url: &str,
     templates: &Tera,
-) -> Result<(), reqwest::Error> {
+) -> Result<(), anyhow::Error> {
     let confirmation_link = format!(
         "{}/subscriptions/confirm?subscription_token={}",
         base_url, subscription_token
@@ -151,14 +150,16 @@ async fn send_confirmation_email(
 
     let mut context = tera::Context::new();
     context.insert("confirmation_link", &confirmation_link);
-    let html_body = templates
-        .render("subscriptions/confirm_subscription_email.html", &context)
-        .unwrap();
-    let plain_body = templates
-        .render("subscriptions/confirm_subscription_email.txt", &context)
-        .unwrap();
+    let html_body = templates.render("subscriptions/confirm_subscription_email.html", &context)?;
+    let plain_body = templates.render("subscriptions/confirm_subscription_email.txt", &context)?;
 
     email_client
-        .send_email(new_subscriber.email, "Welcome!", &html_body, &plain_body)
+        .send_email(&new_subscriber.email, "Welcome!", &html_body, &plain_body)
         .await
+        .with_context(|| {
+            format!(
+                "Sending confirmation email failed for email address: {}.",
+                new_subscriber.email.as_ref()
+            )
+        })
 }

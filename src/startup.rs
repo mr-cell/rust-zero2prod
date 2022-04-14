@@ -63,6 +63,10 @@ impl Application {
             App::new()
                 .wrap(TracingLogger::default())
                 .route("/health", web::get().to(routes::health_check))
+                .route(
+                    "/newsletters",
+                    web::post().to(routes::distribute_newsletter),
+                )
                 .route("/subscriptions", web::post().to(routes::subscribe))
                 .route("/subscriptions/confirm", web::get().to(routes::confirm))
                 .service(actix_files::Files::new("/", "./static"))

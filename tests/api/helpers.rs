@@ -41,6 +41,11 @@ pub struct ConfirmationLinks {
     pub plain: reqwest::Url,
 }
 
+pub struct EmailBody {
+    pub html: String,
+    pub plain: String,
+}
+
 #[derive(sqlx::FromRow)]
 pub struct SubscriptionDetails {
     pub email: String,
@@ -67,6 +72,16 @@ impl TestApp<'_> {
             .expect("Failed to execute request")
     }
 
+    pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
+        reqwest::Client::new()
+            .post(format!("{}/newsletters", &self.address))
+            .header("Content-Type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .expect("Failed to send the request.")
+    }
+
     pub async fn get_saved_subscription(&self, email: &str) -> SubscriptionDetails {
         let mut args = PgArguments::default();
         args.add(email);
@@ -79,9 +94,25 @@ impl TestApp<'_> {
         .expect("Failed to fetch saved subscriptions")
     }
 
-    pub fn get_confirmation_links(&self, email_request: &wiremock::Request) -> ConfirmationLinks {
+    pub fn get_email_body(&self, email_request: &wiremock::Request) -> EmailBody {
         let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
 
+        let html_body = jsonpath_lib::selector(&body)("$.content[?(@.type == 'text/html')].value")
+            .unwrap()[0]
+            .as_str()
+            .unwrap();
+        let text_body = jsonpath_lib::selector(&body)("$.content[?(@.type == 'text/plain')].value")
+            .unwrap()[0]
+            .as_str()
+            .unwrap();
+
+        EmailBody {
+            html: html_body.to_string(),
+            plain: text_body.to_string(),
+        }
+    }
+
+    pub fn get_confirmation_links(&self, email_request: &wiremock::Request) -> ConfirmationLinks {
         let get_link = |s: &str| -> reqwest::Url {
             let links: Vec<_> = linkify::LinkFinder::new()
                 .links(s)
@@ -97,16 +128,10 @@ impl TestApp<'_> {
             confirmation_link
         };
 
-        let html_link = get_link(
-            jsonpath_lib::selector(&body)("$.content[?(@.type == 'text/html')].value").unwrap()[0]
-                .as_str()
-                .unwrap(),
-        );
-        let text_link = get_link(
-            jsonpath_lib::selector(&body)("$.content[?(@.type == 'text/plain')].value").unwrap()[0]
-                .as_str()
-                .unwrap(),
-        );
+        let email_body = self.get_email_body(email_request);
+
+        let html_link = get_link(email_body.html.as_str());
+        let text_link = get_link(email_body.plain.as_str());
 
         ConfirmationLinks {
             html: html_link,
